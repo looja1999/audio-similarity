@@ -1,0 +1,7 @@
+{
+  "name": "audio-recorder-interface",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react"
+}
