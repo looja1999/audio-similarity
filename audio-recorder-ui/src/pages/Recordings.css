@@ -1,0 +1,17 @@
+.recordings ion-item::part(native) {
+  background: #eee;
+  color: #000;
+
+  border-color: #fff;
+  border-width: 2px;
+  
+  padding: 5px 16px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+
+.recordings ion-item::part(detail-icon) {
+  color: white;
+  opacity: 1;
+  font-size: 20px;
+}

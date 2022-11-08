@@ -26,6 +26,7 @@ import ReactS3Client from 'react-aws-s3-typescript';
 
 import { Upload } from '@aws-sdk/lib-storage';
 import { S3Client, S3 } from '@aws-sdk/client-s3';
+import PageHeader from './components/PageHeader/PageHeader';
 
 
 const s3Config = {
@@ -93,13 +94,14 @@ const App: React.FC = () => {
   return (
     <IonApp>
       <IonContent>
-        <IonTitle>
+        <PageHeader />
+        {/* <IonTitle>
           Hello
         </IonTitle>
         <IonButton onClick={() => startRecording()}>Start Recording</IonButton>
         <IonButton onClick={() => stopRecording()}>Stop Recording</IonButton>
         <IonButton onClick={() => onSubmitClick()}>Submit</IonButton>
-        <audio src="https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/looja1.wav" controls> </audio>
+        <audio src="https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/looja1.wav" controls> </audio> */}
       </IonContent>
     </IonApp>
   );

@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import boto3
+from os import walk
 
 # AWS Accesskey
 access_key = "AKIAYVCSIYKQODE3HR7S"
@@ -31,8 +32,15 @@ app.add_middleware(
 def default():
   return {"status" : "working"} 
 
+@app.get("/get-files")
+def get_files():
+  path = "../audio/Sentences"
+  filenames = next(walk(path), (None, None, []))[2] 
+  print(filenames)
+  return {"file names" : filenames}
+
 # Receives audio from front end 
-@app.post("/upload_audio")
+@app.post("/upload-audio")
 def upload_audio(file_name : str):
 
   bucket_name = "dalanggatheringbucket"
