@@ -1,11 +1,11 @@
 import { IonPage, IonHeader, IonToolbar, IonButtons, IonMenuButton, IonTitle, IonContent, IonButton, IonItem, IonLabel, IonModal, useIonAlert, IonText, RefresherEventDetail, IonRefresher, IonRefresherContent } from "@ionic/react";
 import "./Recordings.css";
-import * as fs from 'fs'; 
 import { useEffect, useState } from "react";
-import { useHistory } from "react-router";
 import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
-
+import useMediaRecorder from '@wmik/use-media-recorder';
+import { Upload } from '@aws-sdk/lib-storage';
+import { S3Client } from '@aws-sdk/client-s3';
 
 const Recordings : React.FC = () => {
 
@@ -13,12 +13,26 @@ const Recordings : React.FC = () => {
 
   const [fileNamesArray, setFileNamesArray] = useState([]);
   const [isOpen, setIsOpen] = useState(false); 
-  const [audio, setAudio] = useState({
+  const [audioData, setAudioData] = useState({
     name : "", 
     url : "", 
   }); 
-  const [presentAlert] = useIonAlert();
+  const [mediaBlobStatus, setMediaBlobStatus] = useState(false); 
+  const [isRecording, setIsRecording] = useState(false);
 
+  let {
+    error,
+    status,
+    mediaBlob,
+    stopRecording,
+    getMediaStream,
+    startRecording
+  } = useMediaRecorder({
+    blobOptions: { type: 'audio/wav' },
+    mediaStreamConstraints: { audio: true }
+  });
+  
+  
   const fileNamesRequest = async () => {
     const response = await fetch("http://127.0.0.1:8000/get-files");
     const data = await response.json(); 
@@ -33,21 +47,6 @@ const Recordings : React.FC = () => {
     fileNamesRequest();
   }, [])
 
-  const closeModalHandler = () => {
-    setIsOpen(false); 
-    setAudio({
-      name : "", 
-      url : ""
-    })
-  }
-
-  const openModalHandler = () => {
-    console.log("click");
-    console.log(isOpen);
-    setIsOpen(true); 
-    console.log(isOpen);
-  }
-
   function handleRefresh(event: CustomEvent<RefresherEventDetail>) {
     setTimeout(() => {
       // Any calls to load data go here
@@ -56,7 +55,75 @@ const Recordings : React.FC = () => {
     }, 6000);
   }
 
+  const startRecordingHandler = () => {
+    startRecording(); 
+    setIsRecording(true); 
 
+  }
+
+  const stopRecordingHandler = () => {
+    stopRecording(); 
+    setMediaBlobStatus(true);
+    setIsRecording(false); 
+   
+  }
+
+  const checkResultHandler = async (audioname : string) => {
+    if (mediaBlob){
+      console.log(mediaBlob); 
+
+      const fileBlob = new Blob([mediaBlob]); 
+      const file = new File([fileBlob], `${audioname}`, { type : "audio/wav"}); 
+
+      // console.log(file); 
+      await uploadFile(file); 
+      
+      const mainAudio = audioData.url; 
+      const userAudio = `https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/${file.name.split(" ").join("+")}`
+
+      const response = await fetch("http://localhost:8000/check-similarity", {
+        method : "POST", 
+        headers : {
+          "Content-Type" : "application/json"
+        }, 
+        body : JSON.stringify({audio : audioname})
+      }); 
+
+      const data = await response.json(); 
+
+      console.log(data);
+    } 
+  }
+
+    // Uploading file to aws s3 bucket (bucket name dalang gathering.)
+    const uploadFile = async (file : any) => {
+
+      const target = { Bucket : "dalanggatheringbucket", Key : file.name, Body : file}; 
+      let uploadInfo; 
+
+      try {
+        const parallelUploads3 = await new Upload({
+          client : new S3Client({region : "us-west-1", credentials : {
+            accessKeyId : "AKIAYVCSIYKQODE3HR7S",
+            secretAccessKey : "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"
+          }}),
+          leavePartsOnError : false, 
+          params : target
+        }); 
+  
+        await parallelUploads3.on("httpUploadProgress", (progress) => {
+          uploadInfo = progress; 
+          // console.log(progress); 
+        }); 
+  
+        parallelUploads3.done(); 
+        return uploadInfo; 
+
+      } catch (e) {
+        console.log(e); 
+      }
+    }
+  
   return (
     <IonPage>
       <IonHeader>
@@ -92,10 +159,13 @@ const Recordings : React.FC = () => {
                   (file : string, index : number) => (
                     <IonItem key={index} button detail lines="full"  onClick = {() => {
                       setIsOpen(true);
-                      setAudio({
+                      setAudioData({
                         name : file, 
-                        url : `https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/audio+data/${file.replace(" ", "+")}`
-                      })
+                        // url : `https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/audio+data/${file.replace(" ", "+")}`
+                        url : `https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/audio+data/${file.split(" ").join("+")}`
+                      }); 
+                      console.log(file.split(" ").join("+"))
+                      setMediaBlobStatus(false); 
                       }}>
                       <IonLabel>{file}</IonLabel>
                     </IonItem>
@@ -126,14 +196,47 @@ const Recordings : React.FC = () => {
             </IonHeader>
             <IonContent className="ion-padding">
             
-            <p><b>Audio name</b> : {audio.name}</p>
+            <p><b>Audio name</b> : {audioData.name}</p>
             
             <AudioPlayer
-              src={audio.url}
-              onPlay={e => console.log("onPlay")}
+              src={audioData.url}
+              onPlay={e => {
+                console.log(e)
+                
+              }}
+                     
               showSkipControls = {false}
+              
             />
-             
+
+            {/* Inital Recording */}
+            {!isRecording  && <p style={{paddingTop: "16px", textAlign: "center"}}>Click <b>Start Recording</b> to start recording. </p>}
+            {!isRecording && <IonButton color="success" expand="block" onClick={startRecordingHandler}> Start Recording </IonButton>}
+
+            {/* Stop Recording */}
+            {isRecording && <p style={{paddingTop: "16px", textAlign: "center"}}>Click <b>Stop Recording </b>to stop recording.</p>}
+            {isRecording && <IonButton color="danger" expand="block" onClick={stopRecordingHandler}> Stop Recording </IonButton>}  
+
+            {/* Current Recoring */}
+
+            {!isRecording  && mediaBlob && mediaBlobStatus && <p style={{paddingTop: "16px"}}> <b>Your recording 👇</b> </p>}
+
+
+            {!isRecording  && mediaBlob && mediaBlobStatus && 
+              <audio
+              style={{
+                width : "100%", 
+              }}
+              src={URL.createObjectURL(mediaBlob)}
+              autoPlay = {false}
+              controls
+            />}
+            
+              
+            {/* Check Similarity */}
+            {!isRecording && mediaBlobStatus && <IonButton color="secondary" expand="block" onClick={() => checkResultHandler(audioData.name)} style={{marginTop : "1rem"}}> Check similarity </IonButton>}
+
+           
             </IonContent>
           </IonModal>
         </div>

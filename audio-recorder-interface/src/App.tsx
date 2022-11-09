@@ -25,23 +25,15 @@ import useMediaRecorder from '@wmik/use-media-recorder';
 import ReactS3Client from 'react-aws-s3-typescript';
 
 import { Upload } from '@aws-sdk/lib-storage';
-import { S3Client, S3 } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import PageHeader from './components/PageHeader/PageHeader';
-
-
-const s3Config = {
-  bucketName:  'dalanggatheringbucket',
-  region: 'us-west-1',
-  accessKeyId:'AKIAYVCSIYKQODE3HR7S',
-  secretAccessKey: 'PSrKifmXdJgMWjmX4vi3Jo4npfFGFa5hhoLcSV4U+5GhIjKLm6nOpqr7stuVwxy8ZA9bC0',
-}
 
 setupIonicReact();
 
   // Uploading file to aws s3 bucket (bucket name dalang gathering.)
   const uploadFile = async (file : any) => {
 
-    const target = { Bucket : "dalanggatheringbucket", Key : file.name, Body : file}; 
+    const target = { Bucket : "dalanggatheringbucket/user audio", Key : file.name, Body : file}; 
 
     try {
       const parallelUploads3 = await new Upload({

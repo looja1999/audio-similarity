@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import boto3
 from os import walk
+from pydantic import BaseModel
 
 # AWS Accesskey
 access_key = "AKIAYVCSIYKQODE3HR7S"
@@ -39,13 +40,25 @@ def get_files():
   print(filenames)
   return {"file names" : filenames}
 
-# Receives audio from front end 
-@app.post("/upload-audio")
-def upload_audio(file_name : str):
+
+class fileInfo(BaseModel):
+  audio : str
+
+
+
+@app.post("/check-similarity")
+def check_audio_sim(file : fileInfo):
 
   bucket_name = "dalanggatheringbucket"
 
-  client_s3.download_file(bucket_name, file_name, os.path.join("./saved_audio", file_name))
- 
+  # # download user audio 
+  client_s3.download_file(bucket_name, file.audio, os.path.join("./user_audio", file.audio))
+  
+  # # download main audio 
+  # client_s3.download_file(bucket_name, file.audio, os.path.join("./user_audio", file.audio))
+  
+  
+  # client_s3.download_file(bucket_name, file_name, os.path.join("./saved_audio", file_name))
+  return file.audio
 
 
