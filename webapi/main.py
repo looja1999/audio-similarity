@@ -4,6 +4,9 @@ import os
 import boto3
 from os import walk
 from pydantic import BaseModel
+from resemblyzer import VoiceEncoder, preprocess_wav
+from pathlib import Path
+import numpy as np
 
 # AWS Accesskey
 access_key = "AKIAYVCSIYKQODE3HR7S"
@@ -44,7 +47,24 @@ def get_files():
 class fileInfo(BaseModel):
   audio : str
 
+def compare_sound(path1, path2):
+  print(path1)
+  print(path2)
 
+  fpath1 = Path(path1)
+  wav1 = preprocess_wav(fpath1)
+
+  fpath2 = Path(path2)
+  wav2 = preprocess_wav(fpath2)
+
+  encoder = VoiceEncoder()
+  embed1 = encoder.embed_speaker(wav1)
+  embed2 = encoder.embed_speaker(wav2)
+
+  spk_sim_matrix = np.inner(embed1, embed2)
+  
+  return spk_sim_matrix
+  
 
 @app.post("/check-similarity")
 def check_audio_sim(file : fileInfo):
@@ -56,7 +76,11 @@ def check_audio_sim(file : fileInfo):
   
   # # download main audio 
   # client_s3.download_file(bucket_name, file.audio, os.path.join("./user_audio", file.audio))
-  
+  path1 = Path("./user_audio/{}".format(file.audio))
+  path2 = Path("../audio/Sentences/{}".format(file.audio))
+
+  result = compare_sound(path1, path2)
+
   
   # client_s3.download_file(bucket_name, file_name, os.path.join("./saved_audio", file_name))
   return file.audio
