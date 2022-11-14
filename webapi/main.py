@@ -1,12 +1,17 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
 import os
-import boto3
+import shutil
+import wave
 from os import walk
+from pathlib import Path
+
+import boto3
+import numpy as np
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from resemblyzer import VoiceEncoder, preprocess_wav
-from pathlib import Path
-import numpy as np
+import librosa 
+from pydub import AudioSegment
 
 # AWS Accesskey
 access_key = "AKIAYVCSIYKQODE3HR7S"
@@ -21,6 +26,8 @@ app = FastAPI()
 origins = [
   "http://localhost:8101", 
   "http://localhost:8100",
+  "http://localhost:8000",
+  "http://localhost:3000"
   "*"
 ]
 
@@ -54,6 +61,8 @@ def compare_sound(path1, path2):
   fpath1 = Path(path1)
   wav1 = preprocess_wav(fpath1)
 
+  print(wav1)
+
   fpath2 = Path(path2)
   wav2 = preprocess_wav(fpath2)
 
@@ -63,26 +72,40 @@ def compare_sound(path1, path2):
 
   spk_sim_matrix = np.inner(embed1, embed2)
   
-  return spk_sim_matrix
+  # return spk_sim_matrix
   
+@app.post("/upload")
+def upload(file: UploadFile = File(...)):
+  
+  print(file.filename)
+  with open(f'user_audio/{file.filename}.mp3', "wb") as f:
+    shutil.copyfileobj(file.file, f)
 
-@app.post("/check-similarity")
-def check_audio_sim(file : fileInfo):
-
-  bucket_name = "dalanggatheringbucket"
+  
 
   # # download user audio 
-  client_s3.download_file(bucket_name, file.audio, os.path.join("./user_audio", file.audio))
-  
-  # # download main audio 
-  # client_s3.download_file(bucket_name, file.audio, os.path.join("./user_audio", file.audio))
-  path1 = Path("./user_audio/{}".format(file.audio))
-  path2 = Path("../audio/Sentences/{}".format(file.audio))
+  path_1 = Path("./user_audio/{}.mp3".format(file.filename))
+  sound = AudioSegment.from_mp3(path_1)
+  sound.export(Path("./user_audio/{}.wav".format(file.filename)), format="wav")
+  # path1.as_posix()
+  path_1_new = Path("./user_audio/{}.wav".format(file.filename))
 
-  result = compare_sound(path1, path2)
+  path_2 = Path("../audio/Sentences/{}.wav".format(file.filename))
 
+  # print(wav1)
+  wave_1 = preprocess_wav(path_1_new)
+  wave_2 = preprocess_wav(path_2)
+
+
+  encoder = VoiceEncoder()
+
+  embed_1 = np.array(encoder.embed_utterance(wave_1))
+  embed_2 = np.array(encoder.embed_utterance(wave_2))
   
-  # client_s3.download_file(bucket_name, file_name, os.path.join("./saved_audio", file_name))
-  return file.audio
+  utt_sim = np.inner(embed_1, embed_2)
+  result = str(round(utt_sim * 100))
+  print(result)
+
+  return {"Similarity" : result}
 
 

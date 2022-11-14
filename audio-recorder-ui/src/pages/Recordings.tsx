@@ -6,6 +6,9 @@ import 'react-h5-audio-player/lib/styles.css';
 import useMediaRecorder from '@wmik/use-media-recorder';
 import { Upload } from '@aws-sdk/lib-storage';
 import { S3Client } from '@aws-sdk/client-s3';
+import { blob } from "stream/consumers";
+import { type } from "os";
+import MicRecorder from "./MicRecorder";
 
 const Recordings : React.FC = () => {
 
@@ -18,7 +21,7 @@ const Recordings : React.FC = () => {
     url : "", 
   }); 
   const [mediaBlobStatus, setMediaBlobStatus] = useState(false); 
-  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   let {
     error,
@@ -31,6 +34,8 @@ const Recordings : React.FC = () => {
     blobOptions: { type: 'audio/wav' },
     mediaStreamConstraints: { audio: true }
   });
+
+
   
   
   const fileNamesRequest = async () => {
@@ -55,74 +60,34 @@ const Recordings : React.FC = () => {
     }, 6000);
   }
 
-  const startRecordingHandler = () => {
-    startRecording(); 
-    setIsRecording(true); 
+    // // Uploading file to aws s3 bucket (bucket name dalang gathering.)
+    // const uploadFile = async (file : any) => {
 
-  }
+    //   const target = { Bucket : "dalanggatheringbucket", Key : file.name, Body : file}; 
+    //   let uploadInfo; 
 
-  const stopRecordingHandler = () => {
-    stopRecording(); 
-    setMediaBlobStatus(true);
-    setIsRecording(false); 
-   
-  }
-
-  const checkResultHandler = async (audioname : string) => {
-    if (mediaBlob){
-      console.log(mediaBlob); 
-
-      const fileBlob = new Blob([mediaBlob]); 
-      const file = new File([fileBlob], `${audioname}`, { type : "audio/wav"}); 
-
-      // console.log(file); 
-      await uploadFile(file); 
-      
-      const mainAudio = audioData.url; 
-      const userAudio = `https://dalanggatheringbucket.s3.us-west-1.amazonaws.com/${file.name.split(" ").join("+")}`
-
-      const response = await fetch("http://localhost:8000/check-similarity", {
-        method : "POST", 
-        headers : {
-          "Content-Type" : "application/json"
-        }, 
-        body : JSON.stringify({audio : audioname})
-      }); 
-
-      const data = await response.json(); 
-
-      console.log(data);
-    } 
-  }
-
-    // Uploading file to aws s3 bucket (bucket name dalang gathering.)
-    const uploadFile = async (file : any) => {
-
-      const target = { Bucket : "dalanggatheringbucket", Key : file.name, Body : file}; 
-      let uploadInfo; 
-
-      try {
-        const parallelUploads3 = await new Upload({
-          client : new S3Client({region : "us-west-1", credentials : {
-            accessKeyId : "AKIAYVCSIYKQODE3HR7S",
-            secretAccessKey : "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"
-          }}),
-          leavePartsOnError : false, 
-          params : target
-        }); 
+    //   try {
+    //     const parallelUploads3 = await new Upload({
+    //       client : new S3Client({region : "us-west-1", credentials : {
+    //         accessKeyId : "AKIAYVCSIYKQODE3HR7S",
+    //         secretAccessKey : "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"
+    //       }}),
+    //       leavePartsOnError : false, 
+    //       params : target
+    //     }); 
   
-        await parallelUploads3.on("httpUploadProgress", (progress) => {
-          uploadInfo = progress; 
-          // console.log(progress); 
-        }); 
+    //     await parallelUploads3.on("httpUploadProgress", (progress) => {
+    //       uploadInfo = progress; 
+    //       // console.log(progress); 
+    //     }); 
   
-        parallelUploads3.done(); 
-        return uploadInfo; 
+    //     parallelUploads3.done(); 
+    //     return uploadInfo; 
 
-      } catch (e) {
-        console.log(e); 
-      }
-    }
+    //   } catch (e) {
+    //     console.log(e); 
+    //   }
+    // }
   
   return (
     <IonPage>
@@ -202,40 +167,15 @@ const Recordings : React.FC = () => {
               src={audioData.url}
               onPlay={e => {
                 console.log(e)
-                
+                setIsPlaying(true); 
               }}
-                     
+              onPause={e => setIsPlaying(false)}
+              onAbort={e => setIsPlaying(false)}
               showSkipControls = {false}
               
             />
 
-            {/* Inital Recording */}
-            {!isRecording  && <p style={{paddingTop: "16px", textAlign: "center"}}>Click <b>Start Recording</b> to start recording. </p>}
-            {!isRecording && <IonButton color="success" expand="block" onClick={startRecordingHandler}> Start Recording </IonButton>}
-
-            {/* Stop Recording */}
-            {isRecording && <p style={{paddingTop: "16px", textAlign: "center"}}>Click <b>Stop Recording </b>to stop recording.</p>}
-            {isRecording && <IonButton color="danger" expand="block" onClick={stopRecordingHandler}> Stop Recording </IonButton>}  
-
-            {/* Current Recoring */}
-
-            {!isRecording  && mediaBlob && mediaBlobStatus && <p style={{paddingTop: "16px"}}> <b>Your recording 👇</b> </p>}
-
-
-            {!isRecording  && mediaBlob && mediaBlobStatus && 
-              <audio
-              style={{
-                width : "100%", 
-              }}
-              src={URL.createObjectURL(mediaBlob)}
-              autoPlay = {false}
-              controls
-            />}
-            
-              
-            {/* Check Similarity */}
-            {!isRecording && mediaBlobStatus && <IonButton color="secondary" expand="block" onClick={() => checkResultHandler(audioData.name)} style={{marginTop : "1rem"}}> Check similarity </IonButton>}
-
+            <MicRecorder audioName = {audioData.name} isPlaying = {isPlaying} />
            
             </IonContent>
           </IonModal>
